@@ -1,0 +1,18 @@
+# Dependencies
+node_modules/
+
+# Environment files
+.env
+
+# Build outputs
+web/dist/
+server/dist/
+
+# Logs
+*.log
+logs/
+
+# System files
+.DS_Store
+.vscode/
+

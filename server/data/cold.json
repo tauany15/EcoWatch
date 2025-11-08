@@ -1,0 +1,17 @@
+{
+  "biome": "Arctic Tundra",
+  "species": [
+    {
+      "name": "Polar Bear",
+      "scientificName": "Ursus maritimus",
+      "population": 26000,
+      "conservationStatus": "Vulnerable"
+    },
+    {
+      "name": "Arctic Fox",
+      "scientificName": "Vulpes lagopus",
+      "population": 630000,
+      "conservationStatus": "Least Concern"
+    }
+  ]
+}
