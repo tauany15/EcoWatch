@@ -1,17 +1,5 @@
 import { useEffect, useState } from 'react';
-
-interface Species {
-  name: string;
-  scientificName: string;
-  status: string;
-}
-
-interface BiomeData {
-  biome: string;
-  source: string;
-  totalSpecies: number;
-  species: Species[];
-}
+import { getColdBiome, type BiomeData } from './lib/api';
 
 function App() {
   const [data, setData] = useState<BiomeData | null>(null);
@@ -21,13 +9,7 @@ function App() {
   useEffect(() => {
     const fetchBiomeData = async () => {
       try {
-        const response = await fetch('http://localhost:3000/api/biomes/cold');
-        
-        if (!response.ok) {
-          throw new Error(`HTTP error! status: ${response.status}`);
-        }
-        
-        const result = await response.json();
+        const result = await getColdBiome();
         setData(result);
         setError(null);
       } catch (err) {
@@ -69,6 +51,8 @@ function App() {
     }
     return 'bg-gray-100 text-gray-800 border-gray-200';
   };
+
+  const isLiveData = data?.dataSource === 'gbif-live';
 
   if (loading) {
     return (
@@ -115,9 +99,16 @@ function App() {
             <p className="text-blue-100 text-lg">
               Tracking {data?.totalSpecies || 0} species in arctic and polar regions
             </p>
-            <p className="text-blue-200 text-sm mt-2">
-              Data source: {data?.source || 'GBIF'}
-            </p>
+            <div className="mt-4 flex flex-wrap gap-3">
+              <span className={`inline-flex items-center rounded-full px-3 py-1 text-sm font-semibold ${
+                isLiveData ? 'bg-green-100 text-green-800' : 'bg-yellow-100 text-yellow-800'
+              }`}>
+                {isLiveData ? 'Live GBIF taxonomy' : 'Fallback demo data'}
+              </span>
+              <span className="inline-flex items-center rounded-full bg-white/15 px-3 py-1 text-sm font-semibold text-white">
+                {data?.source || 'GBIF taxonomy enriched with curated statuses'}
+              </span>
+            </div>
           </div>
 
           {/* Table */}
@@ -177,8 +168,11 @@ function App() {
         </div>
 
         {/* Footer info */}
-        <div className="mt-6 text-center text-gray-600 text-sm">
-          <p>Real-time biodiversity data from the Global Biodiversity Information Facility</p>
+        <div className="mt-6 text-center text-gray-600 text-sm space-y-1">
+          <p>{data?.statusSource}</p>
+          {data?.generatedAt && (
+            <p>Last refreshed: {new Date(data.generatedAt).toLocaleString()}</p>
+          )}
         </div>
       </div>
     </div>

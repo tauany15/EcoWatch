@@ -1,6 +1,10 @@
 import { Router, Request, Response } from 'express';
 
 const router = Router();
+const GBIF_TIMEOUT_MS = Number(process.env.GBIF_TIMEOUT_MS || 4000);
+const CACHE_TTL_MS = Number(process.env.CACHE_TTL_MS || 1000 * 60 * 30);
+
+type DataSource = 'gbif-live' | 'curated-fallback';
 
 interface GBIFSearchResult {
   results?: Array<{
@@ -20,6 +24,24 @@ interface SpeciesData {
   name: string;
   scientificName: string;
   status: string;
+  taxonomy?: {
+    kingdom?: string;
+    phylum?: string;
+    class?: string;
+    order?: string;
+    family?: string;
+    genus?: string;
+  };
+}
+
+interface BiomeResponse {
+  biome: string;
+  source: string;
+  statusSource: string;
+  dataSource: DataSource;
+  totalSpecies: number;
+  generatedAt: string;
+  species: SpeciesData[];
 }
 
 // Species configuration with common names and conservation status
@@ -76,15 +98,29 @@ const COLD_BIOME_SPECIES = [
   }
 ];
 
+let cachedResponse: { expiresAt: number; payload: BiomeResponse } | null = null;
+
+function curatedSpecies(): SpeciesData[] {
+  return COLD_BIOME_SPECIES.map((species) => ({
+    name: species.commonName,
+    scientificName: species.scientificName,
+    status: species.status
+  }));
+}
+
 // Fetch species data from GBIF API
 async function fetchSpeciesFromGBIF(
   scientificName: string,
   commonName: string,
   status: string
 ): Promise<SpeciesData | null> {
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), GBIF_TIMEOUT_MS);
+
   try {
     const response = await fetch(
-      `https://api.gbif.org/v1/species/search?q=${encodeURIComponent(scientificName)}`
+      `https://api.gbif.org/v1/species/search?q=${encodeURIComponent(scientificName)}&limit=1`,
+      { signal: controller.signal }
     );
 
     if (!response.ok) {
@@ -105,46 +141,75 @@ async function fetchSpeciesFromGBIF(
     return {
       name: commonName,
       scientificName: firstResult.scientificName || scientificName,
-      status: status
+      status,
+      taxonomy: {
+        kingdom: firstResult.kingdom,
+        phylum: firstResult.phylum,
+        class: firstResult.class,
+        order: firstResult.order,
+        family: firstResult.family,
+        genus: firstResult.genus
+      }
     };
   } catch (error) {
     console.error(`Error fetching ${scientificName} from GBIF:`, error);
     return null;
+  } finally {
+    clearTimeout(timeout);
   }
 }
 
 // GET /api/biomes/cold - Returns cold biome species from GBIF
 router.get('/', async (req: Request, res: Response) => {
   try {
-    // Fetch all species in parallel
+    const now = Date.now();
+
+    if (cachedResponse && cachedResponse.expiresAt > now) {
+      return res.json(cachedResponse.payload);
+    }
+
     const speciesPromises = COLD_BIOME_SPECIES.map(species => 
       fetchSpeciesFromGBIF(species.scientificName, species.commonName, species.status)
     );
 
     const results = await Promise.all(speciesPromises);
-
-    // Filter out any null results (failed fetches)
     const species = results.filter((s): s is SpeciesData => s !== null);
+    const dataSource: DataSource = species.length === COLD_BIOME_SPECIES.length
+      ? 'gbif-live'
+      : 'curated-fallback';
+    const responseSpecies = dataSource === 'gbif-live' ? species : curatedSpecies();
 
-    if (species.length === 0) {
-      return res.status(503).json({ 
-        error: 'Failed to fetch species data from GBIF',
-        message: 'Unable to retrieve biodiversity data at this time'
-      });
-    }
+    const payload: BiomeResponse = {
+      biome: 'Cold Biome',
+      source: dataSource === 'gbif-live'
+        ? 'GBIF taxonomy enriched with curated conservation statuses'
+        : 'Curated fallback species list',
+      statusSource: 'Conservation statuses are curated for this demo.',
+      dataSource,
+      totalSpecies: responseSpecies.length,
+      generatedAt: new Date().toISOString(),
+      species: responseSpecies
+    };
+
+    cachedResponse = {
+      expiresAt: now + CACHE_TTL_MS,
+      payload
+    };
+
+    res.json(payload);
+  } catch (error) {
+    console.error('Error in cold biome route:', error);
+    const species = curatedSpecies();
 
     res.json({
       biome: 'Cold Biome',
-      source: 'GBIF (Global Biodiversity Information Facility)',
+      source: 'Curated fallback species list',
+      statusSource: 'Conservation statuses are curated for this demo.',
+      dataSource: 'curated-fallback',
       totalSpecies: species.length,
+      generatedAt: new Date().toISOString(),
       species
-    });
-  } catch (error) {
-    console.error('Error in cold biome route:', error);
-    res.status(500).json({ 
-      error: 'Failed to fetch biome data',
-      message: error instanceof Error ? error.message : 'Unknown error occurred'
-    });
+    } satisfies BiomeResponse);
   }
 });
 
