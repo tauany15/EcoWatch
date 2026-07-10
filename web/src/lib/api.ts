@@ -5,9 +5,15 @@ interface HealthResponse {
 }
 
 export interface Species {
+  id: string;
   name: string;
   scientificName: string;
   status: string;
+  populationTrend: string;
+  habitat: string;
+  region: string;
+  diet: string;
+  threats: string[];
   taxonomy?: {
     kingdom?: string;
     phylum?: string;
@@ -19,13 +25,29 @@ export interface Species {
 }
 
 export interface BiomeData {
-  biome: string;
+  slug: string;
+  name: string;
+  summary: string;
+  climate: string;
   source: string;
   statusSource: string;
   dataSource: 'gbif-live' | 'curated-fallback';
   totalSpecies: number;
   generatedAt: string;
   species: Species[];
+}
+
+export interface BiomeSummary {
+  slug: string;
+  name: string;
+  summary: string;
+  climate: string;
+  totalSpecies: number;
+}
+
+export interface BiomesResponse {
+  totalBiomes: number;
+  biomes: BiomeSummary[];
 }
 
 async function request<T>(path: string): Promise<T> {
@@ -42,6 +64,10 @@ export async function getHealth(): Promise<HealthResponse> {
   return request<HealthResponse>('/api/health');
 }
 
-export async function getColdBiome(): Promise<BiomeData> {
-  return request<BiomeData>('/api/biomes/cold');
+export async function getBiomes(): Promise<BiomesResponse> {
+  return request<BiomesResponse>('/api/biomes');
+}
+
+export async function getBiome(slug: string): Promise<BiomeData> {
+  return request<BiomeData>(`/api/biomes/${slug}`);
 }

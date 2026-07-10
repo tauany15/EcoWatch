@@ -1,6 +1,6 @@
 import express, { Request, Response } from 'express';
 import cors from 'cors';
-import coldRouter from './routes/cold';
+import biomesRouter from './routes/biomes';
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -23,8 +23,8 @@ app.get('/api/health', (req: Request, res: Response) => {
   res.json({ ok: true });
 });
 
-// Cold biome route - fetches from GBIF API
-app.use('/api/biomes/cold', coldRouter);
+// Biome routes - enrich curated biodiversity data with GBIF taxonomy
+app.use('/api/biomes', biomesRouter);
 
 // Start server
 app.listen(PORT, () => {

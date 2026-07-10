@@ -1,12 +1,21 @@
 # Eco Watch
 
-Eco Watch is a full-stack biodiversity dashboard for exploring cold-biome species and conservation statuses. The API enriches the curated species list with live taxonomy data from GBIF when available, then falls back to a local curated response so the experience remains reliable.
+Eco Watch is a full-stack biodiversity dashboard for exploring species, habitats, threats, and conservation statuses across multiple biomes. The API enriches curated species lists with live taxonomy data from GBIF when available, then falls back to local curated responses so the experience remains reliable.
 
 ## Tech Stack
 
 - React, TypeScript, Vite, Tailwind CSS
 - Express and TypeScript
 - GBIF species API for taxonomy enrichment
+
+## Features
+
+- Biome tabs for cold, tropical rainforest, desert, and ocean ecosystems
+- Species cards with habitat, diet, region, threats, population trend, and conservation status
+- Conservation-status filter
+- Species detail modal
+- Status summary chart
+- GBIF taxonomy enrichment with curated fallback data
 
 ## Local Development
 
@@ -50,7 +59,8 @@ For a hosted deployment, set `VITE_API_BASE_URL` to your deployed API URL and se
 ## API
 
 - `GET /api/health` returns `{ "ok": true }`
-- `GET /api/biomes/cold` returns species, conservation status, source metadata, and whether the response used live GBIF taxonomy or curated fallback data
+- `GET /api/biomes` lists available biomes
+- `GET /api/biomes/:slug` returns species, ecological details, source metadata, and whether the response used live GBIF taxonomy or curated fallback data
 
 ## Production Build
 
